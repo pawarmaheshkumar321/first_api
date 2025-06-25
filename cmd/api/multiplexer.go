@@ -3,7 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
-	"first_api/internal/api/middlewares"
+	mw "first_api/internal/api/middlewares"
 	"fmt"
 	"io"
 	"log"
@@ -42,8 +42,12 @@ func main() {
 
 	// create custom server
 	server := &http.Server{
-		Addr:      port,
-		Handler:   middlewares.SecurityHeaders(mux),
+		Addr: port,
+		//Handler:   nil,
+		//Handler:   mux,
+		//Handler:   middlewares.SecurityHeaders(mux),
+		//Handler:   middlewares.Cors(mux),
+		Handler:   mw.SecurityHeaders(mw.Cors(mux)),
 		TLSConfig: tlsConfig,
 	}
 
