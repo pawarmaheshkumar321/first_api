@@ -1,11 +1,8 @@
 package main
 
-/*package main
-
+/*
 import (
-	"crypto/tls"
 	"encoding/json"
-	mw "first_api/internal/api/middlewares"
 	"fmt"
 	"io"
 	"log"
@@ -22,61 +19,33 @@ type user struct {
 func main() {
 	port := ":3000"
 
-	// create tls mux server
-	cert := "cert.pem"
-	key := "key.pem"
-
-	mux := http.NewServeMux()
-
 	fmt.Println("Servers is running on port :", port)
 
-	mux.HandleFunc("/", rootHandler)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
-	mux.HandleFunc("/teachers/", teacherHandler)
+		fmt.Println("Hello Root Route")
+		_, err := w.Write([]byte("Hello Root Route"))
+		if err != nil {
+			log.Fatalln("Error writing :", err)
+			return
+		}
+	})
 
-	mux.HandleFunc("/students/", studentHandler)
+	http.HandleFunc("/teachers/", teacherHandler)
 
-	mux.HandleFunc("/execs/", execsHandler)
+	http.HandleFunc("/students", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Hello Students Route")
+	})
 
-	tlsConfig := &tls.Config{
-		MinVersion: tls.VersionTLS12,
-	}
+	http.HandleFunc("/execs", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Hello Execs Route")
+	})
 
-	// create custom server
-	server := &http.Server{
-		Addr: port,
-		//Handler:   nil,
-		//Handler:   mux,
-		//Handler:   middlewares.SecurityHeaders(mux),
-		//Handler:   middlewares.Cors(mux),
-		Handler:   mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Cors(mux)),),
-		TLSConfig: tlsConfig,
-	}
-
-	err := server.ListenAndServeTLS(cert, key)
+	err := http.ListenAndServe(port, nil)
 	if err != nil {
 		log.Fatalln("Error starting server :", err)
 	}
 
-
-
-}
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Hello Root Route")
-	_, err := w.Write([]byte("Hello Root Route"))
-	if err != nil {
-		log.Fatalln("Error writing :", err)
-		return
-	}
-}
-
-func studentHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Hello Students Route")
-}
-
-func execsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Hello Execs Route")
 }
 
 func teacherHandler(w http.ResponseWriter, r *http.Request) {
