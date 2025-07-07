@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"crypto/tls"
 	"encoding/json"
@@ -9,51 +10,13 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"sync"
+	"time"
 )
 
 type user struct {
 	Name string `json:"name"`
 	Age  string `json:"age"`
 	City string `json:"city"`
-}
-
-type Teacher struct {
-	ID        int    `json:"id"`
-	FirstName string `json:"fisrtname"`
-	LastName  string `json:"lastname"`
-	Class     string `json:"class"`
-	Subject   string `json:"subject"`
-}
-
-var teachers = make(map[int]Teacher)
-var mutex = &sync.Mutex{}
-var nextID = 1
-
-func init() {
-	teachers[nextID] = Teacher{
-		ID:        nextID,
-		FirstName: "John",
-		LastName:  "Doe",
-		Class:     "9A",
-		Subject:   "Math",
-	}
-	nextID++
-	teachers[nextID] = Teacher{
-		ID:        nextID,
-		FirstName: "Jane",
-		LastName:  "Smith",
-		Class:     "10A",
-		Subject:   "Algebra",
-	}
-	nextID++
-	teachers[nextID] = Teacher{
-		ID:        nextID,
-		FirstName: "Jane",
-		LastName:  "Kola",
-		Class:     "10A",
-		Subject:   "Algebra",
-	}
 }
 
 func main() {
@@ -79,17 +42,15 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 	}
 
-	/*rl := mw.NewRateLimiter(5, time.Minute)
+	rl := mw.NewRateLimiter(5, time.Minute)
 
 	hppOptions := mw.HPPOptions{
 		CheckQuery:              true,
 		CheckBody:               true,
 		CheckBodyForContentType: "application/x-www-form-urlencoded",
 		Whitelist:               []string{"sortBy", "sortOrder", "name", "age", "class"},
-	}*/
+	}
 
-	//secureMux := applyMiddlewares(mux, mw.Hpp(hppOptions), mw.Compression, mw.SecurityHeaders, mw.ResponseTimeMiddleware, rl.Middleware, mw.Cors)
-	secureMux := mw.SecurityHeaders(mux)
 	// create custom server
 	server := &http.Server{
 		Addr: port,
@@ -97,8 +58,7 @@ func main() {
 		//Handler:   mux,
 		//Handler:   middlewares.SecurityHeaders(mux),
 		//Handler:   middlewares.Cors(mux),
-		//Handler:   mw.Hpp(hppOptions)(rl.Middleware(mw.Compression(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Cors(mux)))))),
-		Handler:   secureMux,
+		Handler:   mw.Hpp(hppOptions)(rl.Middleware(mw.Compression(mw.ResponseTimeMiddleware(mw.SecurityHeaders(mw.Cors(mux)))))),
 		TLSConfig: tlsConfig,
 	}
 
@@ -107,17 +67,11 @@ func main() {
 		log.Fatalln("Error starting server :", err)
 	}
 
-}
-
-// middleware is a function that hhtp.Handler with additional Functanality
-type Middleware func(http.Handler) http.Handler
-
-func applyMiddlewares(handler http.Handler, middlewares ...Middleware) http.Handler {
-	for _, middleware := range middlewares {
-		handler = middleware(handler)
-	}
-
-	return handler
+	/*err := http.ListenAndServe(port, nil)
+	if err != nil {
+		log.Fatalln("Error starting server :", err)
+	}*/
+/*
 }
 
 func rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -159,7 +113,18 @@ func execsHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello Get Method in Execs Route"))
 
 	case http.MethodPost:
+		fmt.Println("Query:", r.URL.Query())
+		fmt.Println("Name:", r.URL.Query().Get("name"))
+		fmt.Println("SortBy:", r.URL.Query().Get("sortBy"))
+
+		err := r.ParseForm()
+		if err != nil {
+			return
+		}
+
+		fmt.Println("Form from POST methods :", r.Form)
 		w.Write([]byte("Hello Post Method in Execs Route"))
+
 	case http.MethodPut:
 		w.Write([]byte("Hello Put Method in Execs Route"))
 
@@ -181,10 +146,9 @@ func teacherHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 
 	case http.MethodGet:
-		getTeacherHandler(w, r)
-		/*w.Write([]byte("Hello Get Method in Teachers Route"))
+		w.Write([]byte("Hello Get Method in Teachers Route"))
 		parsePathParameters(w, r)
-		parseQueryParameters(w, r)*/
+		parseQueryParameters(w, r)
 
 	case http.MethodPost:
 		w.Write([]byte("Hello Post Method in Teachers Route"))
@@ -267,30 +231,4 @@ func parseQueryParameters(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Query Params name :", queryParams.Get("key"))
 
 }
-
-func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
-
-	firstName := r.URL.Query().Get("first_name")
-	lastName := r.URL.Query().Get("last_name")
-
-	teachersList := make([]Teacher, 0, len(teachers))
-
-	for _, teacher := range teachers {
-		if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
-			teachersList = append(teachersList, teacher)
-		}
-	}
-
-	response := struct {
-		Status string    `json:"status"`
-		Count  int       `json:"count"`
-		Data   []Teacher `json:"data"`
-	}{
-		Status: "success",
-		Count:  len(teachers),
-		Data:   teachersList,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
+*/
