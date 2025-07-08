@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -20,8 +21,8 @@ type user struct {
 
 type Teacher struct {
 	ID        int    `json:"id"`
-	FirstName string `json:"fisrtname"`
-	LastName  string `json:"lastname"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 	Class     string `json:"class"`
 	Subject   string `json:"subject"`
 }
@@ -54,6 +55,7 @@ func init() {
 		Class:     "10A",
 		Subject:   "Algebra",
 	}
+	nextID++
 }
 
 func main() {
@@ -187,9 +189,10 @@ func teacherHandler(w http.ResponseWriter, r *http.Request) {
 		parseQueryParameters(w, r)*/
 
 	case http.MethodPost:
-		w.Write([]byte("Hello Post Method in Teachers Route"))
+		addTeacherHandler(w, r)
+		/*w.Write([]byte("Hello Post Method in Teachers Route"))
 		parseFormElement(w, r)
-		parseRawBodyElement(w, r)
+		parseRawBodyElement(w, r)*/
 
 	case http.MethodPut:
 		w.Write([]byte("Hello Put Method in Teachers Route"))
@@ -268,18 +271,94 @@ func parseQueryParameters(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// ------------------Teacher Handlers------------------------------//
+// -----Get Teacher Handlers----//
 func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
 
-	firstName := r.URL.Query().Get("first_name")
-	lastName := r.URL.Query().Get("last_name")
+	// for extracting ID from url or path for filtering data
+	path := strings.TrimPrefix(r.URL.Path, "/teachers/")
+	idStr := strings.TrimSuffix(path, "/")
+	fmt.Println("ID : ", idStr)
 
-	teachersList := make([]Teacher, 0, len(teachers))
+	if idStr == "" {
 
-	for _, teacher := range teachers {
-		if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
-			teachersList = append(teachersList, teacher)
+		//https://localhost:3000/teachers/?first_name=Jane
+		firstName := r.URL.Query().Get("first_name")
+		lastName := r.URL.Query().Get("last_name")
+
+		teachersList := make([]Teacher, 0, len(teachers))
+
+		for _, teacher := range teachers {
+			if (firstName == "" || teacher.FirstName == firstName) && (lastName == "" || teacher.LastName == lastName) {
+				teachersList = append(teachersList, teacher)
+			}
+		}
+
+		response := struct {
+			Status string    `json:"status"`
+			Count  int       `json:"count"`
+			Data   []Teacher `json:"data"`
+		}{
+			Status: "success",
+			Count:  len(teachers),
+			Data:   teachersList,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			http.Error(w, "Error Encoding JSON", http.StatusPartialContent)
+			return
+		}
+	} else {
+
+		//https://localhost:3000/teachers/2
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			fmt.Println("Error 78:", err)
+		}
+
+		teacher, exists := teachers[id]
+		if !exists {
+			http.Error(w, "Teacher Not Found", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(teacher)
+		if err != nil {
+			http.Error(w, "Error Encoding JSON", http.StatusPartialContent)
+			return
 		}
 	}
+
+}
+
+//-----Get Teacher Handlers----//
+
+// -----POST Teacher Handlers----//
+func addTeacherHandler(w http.ResponseWriter, r *http.Request) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	var newTeachers []Teacher
+	err := json.NewDecoder(r.Body).Decode(&newTeachers)
+	if err != nil {
+		http.Error(w, "Invalid Request Body", http.StatusBadRequest)
+		return
+	}
+
+	addedTeachers := make([]Teacher, len(newTeachers))
+
+	for i, newTeacher := range newTeachers {
+		newTeacher.ID = nextID
+		teachers[nextID] = newTeacher
+		addedTeachers[i] = newTeacher
+		nextID++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 
 	response := struct {
 		Status string    `json:"status"`
@@ -287,10 +366,18 @@ func getTeacherHandler(w http.ResponseWriter, r *http.Request) {
 		Data   []Teacher `json:"data"`
 	}{
 		Status: "success",
-		Count:  len(teachers),
-		Data:   teachersList,
+		Count:  len(addedTeachers),
+		Data:   addedTeachers,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, "Error Encoding JSON response", http.StatusPartialContent)
+		return
+	}
+
 }
+
+//-----POST Teacher Handlers----//
+
+//------------------Teacher Handlers------------------------------//
